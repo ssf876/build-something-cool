@@ -1,6 +1,9 @@
+import { redirect } from "next/navigation";
+import { isLocalMode } from "@/lib/auth/local";
 import Link from "next/link";
 
 export default function Home() {
+  if (isLocalMode()) redirect("/analysis");
   return (
     <main>
       <h1>Sika Planner</h1>

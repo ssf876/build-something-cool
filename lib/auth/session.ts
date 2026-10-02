@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { SESSION_COOKIE } from "@/lib/auth/constants";
 
+import { isLocalMode } from "./local";
+
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 // The cookie carries an opaque random token; the database stores only its
@@ -35,6 +37,23 @@ export async function createSession(userId: string): Promise<void> {
 
 /** Resolve the signed-in user (with household) from the session cookie, or null. */
 export const getSessionUser = cache(async () => {
+  if (isLocalMode()) {
+    const household = await prisma.household.upsert({
+      where: { id: "sika-local" },
+      update: {},
+      create: { id: "sika-local", name: "My finances" },
+    });
+    return prisma.user.upsert({
+      where: { email: "local@sika.invalid" },
+      update: { householdId: household.id },
+      create: {
+        email: "local@sika.invalid",
+        passwordHash: "LOCAL_LOGIN_DISABLED",
+        householdId: household.id,
+      },
+      include: { household: true },
+    });
+  }
   const store = await cookies();
   const token = store.get(SESSION_COOKIE)?.value;
   if (!token) return null;

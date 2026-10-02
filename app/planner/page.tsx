@@ -26,13 +26,18 @@ function monthTitle(year: number, month: number): string {
   });
 }
 
-export default async function PlannerPage() {
+export default async function PlannerPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string }>;
+}) {
+  const { month } = await searchParams;
+  const date =
+    month && /^\d{4}-(0[1-9]|1[0-2])$/.test(month)
+      ? `${month}-01`
+      : todayCalendarDate();
   const user = await requireOnboardedUser();
-  const snapshot = await getPlannerSnapshot(
-    prisma,
-    user.householdId,
-    todayCalendarDate(),
-  );
+  const snapshot = await getPlannerSnapshot(prisma, user.householdId, date);
 
   // Advisor seam (D12): confirmed life-event seasons become planner
   // proposals for this month. The grid renders whatever arrives — applying
