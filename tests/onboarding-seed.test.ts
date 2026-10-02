@@ -52,11 +52,11 @@ describe("buildSeedPlan — seeding invariants (D10)", () => {
   });
 
   it("rolls the scaffolded month across the year boundary", () => {
-    const december = buildSeedPlan(ANSWERS, new Date("2026-12-15T00:00:00Z"));
+    const december = buildSeedPlan(ANSWERS, new Date(2026, 11, 15));
     expect(december.month.year).toBe(2026);
     expect(december.month.month).toBe(12);
 
-    const january = buildSeedPlan(ANSWERS, new Date("2027-01-01T00:00:00Z"));
+    const january = buildSeedPlan(ANSWERS, new Date(2027, 0, 1));
     expect(january.month.year).toBe(2027);
     expect(january.month.month).toBe(1);
   });

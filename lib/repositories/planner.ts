@@ -200,3 +200,69 @@ export async function getPlannerSnapshot(
     availability: engine.categoryAvailable(monthId),
   };
 }
+
+/** User-approved baseline amounts replace selected allocations atomically.
+ * Uses the normal engine assign path; ledger rows are never edited.
+ */
+export async function applyBudgetSkeleton(
+  db: TransactionalDb,
+  householdId: string,
+  input: {
+    month: string;
+    lines: { categoryId: string; cents: number; group: CategoryGroup }[];
+  },
+): Promise<string> {
+  if (
+    !/^\d{4}-(0[1-9]|1[0-2])$/.test(input.month) ||
+    Number(input.month.slice(0, 4)) < 1900 ||
+    Number(input.month.slice(0, 4)) > 9999
+  )
+    throw new Error("Choose a valid budget month.");
+  if (
+    !input.lines.length ||
+    new Set(input.lines.map((l) => l.categoryId)).size !== input.lines.length
+  )
+    throw new Error("Select at least one distinct category.");
+  if (
+    input.lines.some(
+      (l) =>
+        !Number.isSafeInteger(l.cents) ||
+        l.cents < 0 ||
+        l.cents > 2147483647 ||
+        !["NEEDS", "WANTS", "SAVINGS_DEBTS", "INVESTMENTS"].includes(l.group),
+    )
+  )
+    throw new Error(
+      "Amounts must be non-negative cents and groups must be valid.",
+    );
+  return db.$transaction(async (tx) => {
+    const owned = await tx.category.findMany({
+      where: { householdId },
+      select: { id: true },
+    });
+    if (
+      input.lines.some((line) => !owned.some((c) => c.id === line.categoryId))
+    )
+      throw new Error("Unknown category.");
+    const monthId = await ensureMonthCovers(
+      tx,
+      householdId,
+      `${input.month}-01`,
+    );
+    const before = await loadHouseholdEngineState(tx, householdId);
+    const engine = createBudgetEngine(before);
+    for (const line of input.lines)
+      engine.assign(monthId, line.categoryId, line.cents);
+    await persistEngineDelta(
+      tx,
+      householdId,
+      diffEngineStates(before, engine.snapshot()),
+    );
+    for (const line of input.lines)
+      await tx.category.update({
+        where: { id: line.categoryId },
+        data: { group: line.group },
+      });
+    return monthId;
+  });
+}

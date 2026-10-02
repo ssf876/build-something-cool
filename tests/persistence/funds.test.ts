@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   contributeToFund,
@@ -19,9 +19,14 @@ import {
 let seeded: SeededHousehold;
 
 beforeEach(async () => {
+  // The fixtures and board assertions describe September, regardless of today.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date(2026, 8, 15, 12));
   await resetDatabase();
   seeded = await seedHousehold(`funds-${crypto.randomUUID()}`);
 });
+
+afterEach(() => vi.useRealTimers());
 
 /** Sinking fund with $500 contributed and $300 assigned to its companion. */
 async function seedSinkingFund() {
@@ -174,18 +179,14 @@ describe("recordPopupDraw — sinking semantics through the persisted engine (D8
         assignedCents: 30000,
       },
     });
-    const baseline = await recordManualTransaction(
-      testDb,
-      seeded.householdId,
-      {
-        accountId: seeded.accountIds.checking,
-        kind: "EXPENSE",
-        amountCents: -1,
-        date: "2026-09-02",
-        payee: "warmup",
-        categoryId: seeded.categoryIds.groceries,
-      },
-    );
+    const baseline = await recordManualTransaction(testDb, seeded.householdId, {
+      accountId: seeded.accountIds.checking,
+      kind: "EXPENSE",
+      amountCents: -1,
+      date: "2026-09-02",
+      payee: "warmup",
+      categoryId: seeded.categoryIds.groceries,
+    });
     expect(baseline.readyToAssignCents).toBe(70000);
 
     const result = await recordPopupDraw(testDb, seeded.householdId, {
@@ -237,9 +238,8 @@ describe("recordPopupDraw — sinking semantics through the persisted engine (D8
 
     // A fresh hydration of the database tells the same story — the persisted
     // engine agrees with the returned views.
-    const { loadHouseholdEngineState } = await import(
-      "@/lib/repositories/engine-state"
-    );
+    const { loadHouseholdEngineState } =
+      await import("@/lib/repositories/engine-state");
     const { createBudgetEngine } = await import("@/src/engine");
     const engine = createBudgetEngine(
       await loadHouseholdEngineState(testDb, seeded.householdId),

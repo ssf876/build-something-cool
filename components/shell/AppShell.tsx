@@ -1,3 +1,4 @@
+import { isLocalMode } from "@/lib/auth/local";
 import Link from "next/link";
 
 import { BrandMark } from "@/components/brand/BrandMark";
@@ -6,7 +7,7 @@ import { ProfileMenu } from "./ProfileMenu";
 import styles from "./AppShell.module.css";
 
 /** The three primary destinations; everything else stays URL-reachable. */
-export type ShellNavKey = "overview" | "plan" | "activity";
+export type ShellNavKey = "overview" | "plan" | "activity" | "analysis";
 
 const NAV_ITEMS: ReadonlyArray<{
   key: ShellNavKey;
@@ -42,14 +43,23 @@ export function AppShell({
       <header className={styles.header}>
         <div className={styles.headerInner}>
           <Link
-            href="/dashboard"
+            href={isLocalMode() ? "/analysis" : "/dashboard"}
             className={styles.brandLink}
             aria-label="Sika Planner home"
           >
             <BrandMark />
           </Link>
           <nav className={styles.nav} aria-label="Primary">
-            {NAV_ITEMS.map((item) => (
+            {(isLocalMode()
+              ? [
+                  {
+                    key: "analysis",
+                    href: "/analysis",
+                    label: "Financial review",
+                  },
+                ]
+              : NAV_ITEMS
+            ).map((item) => (
               <Link
                 key={item.key}
                 href={item.href}
@@ -61,7 +71,11 @@ export function AppShell({
             ))}
           </nav>
           <div className={styles.profileArea}>
-            <ProfileMenu email={email} />
+            {isLocalMode() ? (
+              <span>Local · single user</span>
+            ) : (
+              <ProfileMenu email={email} />
+            )}
           </div>
         </div>
       </header>

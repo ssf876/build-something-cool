@@ -13,6 +13,16 @@ import {
  * avoids round-tripping obviously unauthenticated traffic through the app.
  */
 export function middleware(request: NextRequest) {
+  if (process.env.SIKA_LOCAL_MODE === "true") {
+    if (
+      ["/login", "/signup", "/onboarding", "/dashboard"].includes(
+        request.nextUrl.pathname,
+      )
+    ) {
+      return NextResponse.redirect(new URL("/analysis", request.url));
+    }
+    return NextResponse.next();
+  }
   const { pathname } = request.nextUrl;
   const hasSessionCookie = request.cookies.has(SESSION_COOKIE);
 

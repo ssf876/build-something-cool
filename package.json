@@ -21,7 +21,8 @@
     "test:e2e": "playwright test",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "dev:local": "SIKA_LOCAL_MODE=true next dev --turbopack --hostname 127.0.0.1"
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
